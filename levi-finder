@@ -1,0 +1,68 @@
+-- XENO EXECUTOR: LEVIATHAN DETECTOR & AUTO-TWEEN TELEPORT
+local BOSS_NAME = "Leviathan"
+local CHECK_INTERVAL = 2
+local TELEPORT_SPEED = 250 -- Speed in studs/sec to avoid anti-cheat kicks
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local StarterGui = game:GetService("StarterGui")
+local LocalPlayer = Players.LocalPlayer
+
+local function notify(title, msg)
+    StarterGui:SetCore("SendNotification", {Title = title, Text = msg, Duration = 4})
+end
+
+-- Smooth Tween Teleportation 
+local function teleportTo(targetCFrame)
+    local character = LocalPlayer.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local distance = (root.Position - targetCFrame.Position).Magnitude
+    local duration = distance / TELEPORT_SPEED
+
+    local info = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(root, info, {CFrame = targetCFrame})
+    
+    notify("Teleporting...", "Moving to Leviathan. ETA: " .. string.format("%.1f", duration) .. "s")
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+local function scanForLevi()
+    -- Deep scan through workspace folders
+    local levi = Workspace:FindFirstChild(BOSS_NAME, true)
+    if levi and levi:FindFirstChild("HumanoidRootPart") then
+        local targetPart = levi.HumanoidRootPart
+        
+        -- ESP Highlight Setup
+        if not targetPart:FindFirstChild("XenoLeviESP") then
+            local hl = Instance.new("Highlight")
+            hl.Name = "XenoLeviESP"
+            hl.FillColor = Color3.fromRGB(0, 255, 128) -- Neon Green Fill
+            hl.Parent = levi
+            
+            notify("LEVIATHAN SPAWNED!", "Initiating auto-teleport sequence...")
+            task.wait(1)
+            
+            -- Teleports 50 studs safely above the Leviathan's head
+            local safeTarget = targetPart.CFrame * CFrame.new(0, 50, 0)
+            teleportTo(safeTarget)
+        end
+        return true
+    end
+    return false
+end
+
+-- Thread execution loop
+task.spawn(function()
+    notify("Xeno Script Loaded", "Leviathan auto-tracker is online.")
+    while true do
+        local success, err = pcall(scanForLevi)
+        if not success then 
+            warn("Xeno Hook Error: " .. tostring(err)) 
+        end
+        task.wait(CHECK_INTERVAL)
+    end
+end)
