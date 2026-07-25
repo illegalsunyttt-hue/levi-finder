@@ -1,0 +1,114 @@
+-- BOOTSTRAP FLUENT UI LIBRARY
+local Fluent = loadstring(game:HttpGet("https://github.com"))()
+
+-- SERVICE HANDLERS
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+-- FORCED CONFIGURATION
+_G.FlameRaidActive = false
+local TELEPORT_SPEED = 320
+
+-- ENEMY HITBOX LINKER & KILLER
+local function killFlameRaidWave()
+    if not Workspace:FindFirstChild("Enemies") then return end
+    
+    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+        if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+
+            -- Lock onto target until killed
+            while _G.FlameRaidActive and enemy and enemy.Parent and enemy.Humanoid.Health > 0 do
+                -- Teleports instantly right under the enemy out of attack range
+                root.CFrame = enemy.HumanoidRootPart.CFrame * CFrame.new(0, -7, 0)
+                
+                -- Force weapon deployment and click triggers
+                local weapon = char:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+                if weapon then
+                    if weapon.Parent == LocalPlayer.Backpack then
+                        weapon.Parent = char
+                    end
+                    weapon:Activate()
+                end
+                task.wait(0.05) -- Hyper-fast cycle
+            end
+        end
+    end
+end
+
+-- AUTO FLAME CHIP BUYER & ACCESS ROOM LINK
+local function handleFlameRaidManagement()
+    if not _G.FlameRaidActive then return end
+    
+    local inventoryChip = LocalPlayer.Backpack:FindFirstChild("Special Microchip") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Special Microchip"))
+    
+    if not inventoryChip and not Workspace:FindFirstChild("Enemies") then
+        -- Secure Flame chip purchase invoke sequence
+        ReplicatedStorage.Remotes.CommF_:InvokeServer("BlackbeardReward", "Flame", "Buy")
+        task.wait(0.5)
+        
+        -- Pull character directly into the starting platform tube link
+        local startPad = Workspace:FindFirstChild("RaidStructure") or Workspace:FindFirstChild("BoatCastle")
+        if startPad then
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = CFrame.new(-6415, 250, 4450) -- Standard center lab tube link cords
+            end
+        end
+    end
+end
+
+-- SYSTEM ENGINE BACKEND THREAD
+task.spawn(function()
+    while true do
+        if _G.FlameRaidActive then
+            pcall(function()
+                if Workspace:FindFirstChild("Enemies") and #Workspace.Enemies:GetChildren() > 0 then
+                    killFlameRaidWave()
+                else
+                    handleFlameRaidManagement()
+                end
+            end)
+        end
+        task.wait(0.5)
+    end
+end)
+
+-- ==========================================
+-- MINIMALIST FLAME RAID INTERFACE WINDOW
+-- ==========================================
+local Window = Fluent:CreateWindow({
+    Title = "Xeno Flame-Raid Engine V2",
+    SubTitle = "illegalsunyttt-hue",
+    TabWidth = 150,
+    Size = UDim2.fromOffset(450, 240),
+    Acrylic = false,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    RaidTab = Window:AddTab({ Title = "Flame Auto-Farm", Icon = "flame" })
+}
+
+-- SIMPLIFIED FLAME TOGGLE SWITCH
+Tabs.RaidTab:AddToggle("FlameRaidToggle", {
+    Title = "Start Flame Raid",
+    Description = "Automatically buys chips, enters, and clears every wave",
+    Default = false,
+    Callback = function(Value)
+        _G.FlameRaidActive = Value
+        if Value then
+            Fluent:Notify({ Title = "Flame System Active", Content = "Auto-grinding initialized.", Duration = 3 })
+        else
+            Fluent:Notify({ Title = "Flame System Offline", Content = "Auto-grinding suspended.", Duration = 3 })
+        end
+    end
+})
+
+Fluent:Notify({ Title = "Xeno Panel Ready", Content = "Flame core loaded successfully.", Duration = 4 })
