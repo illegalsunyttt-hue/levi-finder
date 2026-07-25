@@ -1,0 +1,134 @@
+-- BOOTSTRAP FLUENT UI LIBRARY
+local Fluent = loadstring(game:HttpGet("https://github.com"))()
+
+-- SERVICE HANDLERS
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+-- CONFIGURATION DATA
+_G.AutoRaidEnabled = false
+_G.SelectedRaid = "Flame"
+local TELEPORT_SPEED = 300
+
+-- REUSABLE TELEPORT SYSTEM (SMOOTH FLIGHT)
+local function smoothTween(targetCFrame)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local distance = (root.Position - targetCFrame.Position).Magnitude
+    local duration = distance / TELEPORT_SPEED
+
+    local info = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(root, info, {CFrame = targetCFrame})
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+-- AUTOMATED COMBAT SYSTEM
+local function attackRaidEnemies()
+    if not Workspace:FindFirstChild("Enemies") then return end
+    
+    for _, enemy in pairs(Workspace.Enemies:GetChildren()) do
+        if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if not root then return end
+
+            while _G.AutoRaidEnabled and enemy and enemy.Parent and enemy.Humanoid:FindFirstChild("Health") and enemy.Humanoid.Health > 0 do
+                -- Teleports exactly 7 studs under the enemy to dodge all incoming damage
+                root.CFrame = enemy.HumanoidRootPart.CFrame * CFrame.new(0, -7, 0)
+                
+                -- Equips and activates any weapon tool inside your inventory automatically
+                local tool = char:FindFirstChildOfClass("Tool") or LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+                if tool then
+                    if tool.Parent == LocalPlayer.Backpack then
+                        tool.Parent = char
+                    end
+                    tool:Activate()
+                end
+                task.wait(0.1)
+            end
+        end
+    end
+end
+
+-- CHIP PURCHASING & START SYSTEM
+local function manageRaidStart()
+    if not _G.AutoRaidEnabled then return end
+    
+    -- Checks if you already hold a microchip
+    local hasChip = LocalPlayer.Backpack:FindFirstChild("Special Microchip") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Special Microchip"))
+    
+    if not hasChip then
+        -- Automatically buy the chosen chip via remote communications
+        ReplicatedStorage.Remotes.CommF_:InvokeServer("BlackbeardReward", _G.SelectedRaid, "Buy")
+        task.wait(0.5)
+    end
+end
+
+-- BACKGROUND PROCESSING LOOP
+task.spawn(function()
+    while true do
+        if _G.AutoRaidEnabled then
+            local success, err = pcall(function()
+                -- Detects if you are inside a live raid instance
+                if Workspace:FindFirstChild("Enemies") and #Workspace.Enemies:GetChildren() > 0 then
+                    attackRaidEnemies()
+                else
+                    manageRaidStart()
+                end
+            end)
+            if not success then warn("Xeno Engine Loop Error: " .. tostring(err)) end
+        end
+        task.wait(1)
+    end
+end)
+
+-- ==========================================
+-- CREATE WINDOW GUI PANEL INTERFACE
+-- ==========================================
+local Window = Fluent:CreateWindow({
+    Title = "Xeno Auto-Raid Engine",
+    SubTitle = "by illegalsunyttt-hue",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 360),
+    Acrylic = false,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
+})
+
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main Controls", Icon = "home" })
+}
+
+-- RAID CHIP SELECTION DROPDOWN
+local Dropdown = Tabs.Main:AddDropdown("RaidSelect", {
+    Title = "Select Raid Fruit Type",
+    Description = "Flame is strongly recommended for speed",
+    Values = {"Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma"},
+    CurrentValue = "Flame",
+    Callback = function(Value)
+        _G.SelectedRaid = Value
+    end
+})
+
+-- THE MASTER TOGGLE SWITCH
+Tabs.Main:AddToggle("AutoRaidToggle", {
+    Title = "Start Auto-Raid",
+    Default = false,
+    Callback = function(Value)
+        _G.AutoRaidEnabled = Value
+        if Value then
+            Fluent:Notify({ Title = "System Active", Content = "Auto-Raid system turned ON.", Duration = 3 })
+        else
+            Fluent:Notify({ Title = "System Inactive", Content = "Auto-Raid system turned OFF.", Duration = 3 })
+        end
+    end
+})
+
+-- INITIALIZATION COMPLETED BANNER
+Fluent:Notify({ Title = "Xeno Script Loaded", Content = "GUI Interface created successfully! Press Left-CTRL to minimize.", Duration = 5 })
